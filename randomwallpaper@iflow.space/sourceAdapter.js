@@ -317,8 +317,8 @@ var WallhavenAdapter = class extends BaseAdapter {
 	}
 
 	_readOptionsFromSettings() {
-		this.options.q = this._settings.get('wallhaven-keyword', 'string');
-
+		let query = this._settings.get('wallhaven-keyword', 'string').split(' ');
+		this.options.q = query[Math.floor(Math.random() * query.length)];
 		this.options.resolutions = this._settings.get('resolutions', 'string').split(',');
 		this.options.resolutions = this.options.resolutions.map((elem) => {
 			return elem.trim();
