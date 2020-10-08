@@ -1,21 +1,22 @@
 const Lang = imports.lang;
 const PopupMenu = imports.ui.popupMenu;
 const St = imports.gi.St;
-const Tweener = imports.ui.tweener;
 const Util = imports.misc.util;
 const GdkPixbuf = imports.gi.GdkPixbuf;
 const Clutter = imports.gi.Clutter;
 const Cogl = imports.gi.Cogl;
 const Gtk = imports.gi.Gtk;
+const GObject = imports.gi.GObject;
 
 const Self = imports.misc.extensionUtils.getCurrentExtension();
 const LoggerModule = Self.imports.logger;
 const Timer = Self.imports.timer;
 
-var HistoryElement = class extends PopupMenu.PopupSubMenuMenuItem {
-
-	constructor(historyEntry, index) {
-		super("", false);
+var HistoryElement = GObject.registerClass({
+			 GTypeName: 'HistoryElement',
+	 }, class HistoryElement extends PopupMenu.PopupSubMenuMenuItem {
+				_init(historyEntry, index) {
+		super._init("", false);
 		this.logger = new LoggerModule.Logger('RWG3', 'HistoryElement');
 		this.historyEntry = null;
 		this.setAsWallpaperItem = null;
@@ -101,7 +102,7 @@ var HistoryElement = class extends PopupMenu.PopupSubMenuMenuItem {
 
 		this.setAsWallpaperItem = new PopupMenu.PopupMenuItem('Set As Wallpaper');
 		this.setAsWallpaperItem.connect('activate', () => {
-			this.emit('activate');
+			this.emit('activate', null); // Fixme: not sure what the second parameter should be. null seems to work fine for now.
 		});
 
 		this.previewItem = new PopupMenu.PopupBaseMenuItem({can_focus: false, reactive: false});
@@ -147,20 +148,22 @@ var HistoryElement = class extends PopupMenu.PopupSubMenuMenuItem {
 	setIndex(index) {
 		this.prefixLabel.set_text(String(index));
 	}
+	 }
+);
 
-};
+var CurrentImageElement = GObject.registerClass({
+			 GTypeName: 'CurrentImageElement',
+	 }, class CurrentImageElement extends HistoryElement {
 
-var CurrentImageElement = class extends HistoryElement {
-
-	constructor(historyElement) {
-		super(historyElement, 0);
+	_init(historyElement) {
+		super._init(historyElement, 0);
 
 		if (this.setAsWallpaperItem !== null) {
 			this.setAsWallpaperItem.destroy();
 		}
 	}
 
-};
+});
 
 /**
  * Element for the New Wallpaper button and the remaining time for the auto fetch
@@ -169,10 +172,12 @@ var CurrentImageElement = class extends HistoryElement {
  *
  * @type {Lang.Class}
  */
-var NewWallpaperElement = class extends PopupMenu.PopupBaseMenuItem {
+var NewWallpaperElement = GObject.registerClass({
+			 GTypeName: 'NewWallpaperElement',
+	 }, class NewWallpaperElement extends PopupMenu.PopupBaseMenuItem {
 
-	constructor(params) {
-		super(params);
+	_init(params) {
+		super._init(params);
 
 		this._timer = new Timer.AFTimer();
 
@@ -217,9 +222,9 @@ var NewWallpaperElement = class extends PopupMenu.PopupBaseMenuItem {
 		}
 	}
 
-};
+});
 
-var StatusElement = class {
+class StatusElement {
 
 	constructor() {
 		this.icon = new St.Icon({
@@ -231,51 +236,26 @@ var StatusElement = class {
 
 		this.loadingTweenIn = {
 			opacity: 20,
-			time: 2,
-			transition: 'easeInOutSine',
-			onComplete: function () {
-				try {
-					Tweener.addTween(_this.icon, _this.loadingTweenOut);
-				} catch (e) {
-					// swollow (not really important)
-				}
-			}
+			duration: 1500,
+			mode: Clutter.AnimationMode.EASE_IN_OUT_SINE,
+			autoReverse: true,
+			repeatCount: -1
 		};
-
-		this.loadingTweenOut = {
-			opacity: 255,
-			time: 1,
-			transition: 'easeInOutSine',
-			onComplete: function () {
-				if (_this.isLoading) {
-					try {
-						Tweener.addTween(_this.icon, _this.loadingTweenIn);
-					} catch (e) {
-						// swollow (not really important)
-					}
-				} else {
-					return false;
-				}
-				return true;
-			}
-		}
 
 	}
 
 	startLoading() {
-		this.isLoading = true;
-		Tweener.addTween(this.icon, this.loadingTweenOut);
+		this.icon.ease(this.loadingTweenIn);
 	}
 
 	stopLoading() {
-		this.isLoading = false;
-		Tweener.removeTweens(this.icon);
+		this.icon.remove_all_transitions();
 		this.icon.opacity = 255;
 	}
 
 };
 
-var HistorySection = class extends PopupMenu.PopupMenuSection {
+class HistorySection extends PopupMenu.PopupMenuSection {
 
 	constructor() {
 		super();
